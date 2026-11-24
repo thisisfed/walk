@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#15171a">
+<title>Lane — walk straight</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+/* VOICE: calm road-sign clarity, readable at a glance while walking
+   IDEA: a single road lane — you are the dot, the yellow line is your path
+   PICTURE: the lane itself, large; the dot drifts off the line as you veer
+   COLOUR and TYPE: asphalt #15171a, road yellow #ffd23f, warning orange #ff5a36; Archivo
+   LAYOUT: one column, lane on top, status, big controls, settings */
+:root{color-scheme:dark;--bg:#15171a;--road:#202328;--ink:#f2f2ee;--mute:#9aa0a6;--y:#ffd23f;--warn:#ff5a36;--ok:#4fd18b}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Archivo,system-ui,sans-serif;overflow-x:clip;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.wrap{max-width:560px;margin:0 auto;padding:18px 16px 40px}
+h1{font-size:34px;line-height:1.05;margin:4px 0 2px;font-weight:900;letter-spacing:-.5px}
+.sub{color:var(--mute);margin:0 0 16px}
+.lane{position:relative;height:min(46vh,380px);background:var(--road);border-radius:18px;overflow:hidden;
+  box-shadow:inset 0 0 0 2px #2c3036}
+.lane::before,.lane::after{content:"";position:absolute;top:0;bottom:0;width:6px;background:#e9e9e4;opacity:.55}
+.lane::before{left:7%}.lane::after{right:7%}
+.centre{position:absolute;left:50%;top:-40px;bottom:-40px;width:6px;margin-left:-3px;
+  background:repeating-linear-gradient(var(--y) 0 34px,transparent 34px 64px);animation:roll 1s linear infinite;animation-play-state:paused}
+.walking .centre{animation-play-state:running}
+@keyframes roll{to{transform:translateY(64px)}}
+.band-ok{position:absolute;top:0;bottom:0;left:50%;background:rgba(255,210,63,.08);transition:width .3s,margin .3s}
+.dot{position:absolute;left:50%;bottom:22%;width:54px;height:54px;margin-left:-27px;border-radius:50%;
+  background:var(--ink);box-shadow:0 6px 18px rgba(0,0,0,.5),inset 0 -6px 0 rgba(0,0,0,.18);transition:transform .25s ease-out,background .2s}
+.dot::after{content:"";position:absolute;left:50%;top:-14px;margin-left:-9px;border:9px solid transparent;border-bottom:14px solid var(--ink);border-top:0}
+.off .dot{background:var(--warn)}.off .dot::after{border-bottom-color:var(--warn)}
+.steer{position:absolute;left:0;right:0;top:12%;text-align:center;font-size:30px;font-weight:900;color:var(--warn);opacity:0;transition:opacity .2s;text-shadow:0 2px 10px rgba(0,0,0,.6)}
+.off .steer{opacity:1}
+.state{position:absolute;left:12px;right:12px;bottom:10px;text-align:center;font-weight:700;color:var(--mute);font-size:15px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:14px 0}
+.stat{background:var(--road);border-radius:12px;padding:10px 8px;text-align:center}
+.stat b{display:block;font-size:22px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.stat span{font-size:13px;color:var(--mute)}
+.yes{color:var(--ok)}.no{color:var(--mute)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+button{font:inherit;font-weight:700;min-height:52px;border-radius:14px;border:0;padding:0 18px;cursor:pointer;flex:1 1 140px}
+button:focus-visible,input:focus-visible{outline:3px solid var(--y);outline-offset:2px}
+.go{background:var(--y);color:#15171a;font-size:19px}
+.ghost{background:var(--road);color:var(--ink);box-shadow:inset 0 0 0 2px #33373d}
+.msg{min-height:1.5em;margin:10px 0 0;color:var(--warn);font-weight:700}
+.set{margin-top:22px;background:var(--road);border-radius:16px;padding:14px 16px}
+.set h2{font-size:17px;margin:0 0 8px}
+label{display:flex;align-items:center;gap:12px;min-height:44px}
+input[type=range]{flex:1;accent-color:var(--y);height:32px}
+input[type=checkbox]{width:24px;height:24px;accent-color:var(--y)}
+.val{font-variant-numeric:tabular-nums;white-space:nowrap;width:3.2em;text-align:right;font-weight:700}
+details{margin-top:18px;color:var(--mute)}summary{cursor:pointer;font-weight:700;color:var(--ink);min-height:44px;display:flex;align-items:center}
+details p{margin:6px 0}
+@media (prefers-reduced-motion:reduce){.centre{animation:none}.dot{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Lane</h1>
+  <p class="sub">Buzzes when you drift off a straight line while walking and looking at your phone.</p>
+
+  <div class="lane" id="lane">
+    <div class="band-ok" id="band"></div>
+    <div class="centre"></div>
+    <div class="steer" id="steer"></div>
+    <div class="dot" id="dot"></div>
+    <div class="state" id="state">Tap Start, then walk while looking at the screen</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b id="sWalk" class="no">No</b><span>Walking</span></div>
+    <div class="stat"><b id="sLook" class="no">No</b><span>Looking</span></div>
+    <div class="stat"><b id="sSteps">0</b><span>Steps</span></div>
+    <div class="stat"><b id="sDev">–</b><span>Drift</span></div>
+  </div>
+
+  <div class="row">
+    <button class="go" id="start">Start</button>
+    <button class="ghost" id="recentre" disabled>Re-centre line</button>
+  </div>
+  <p class="msg" id="msg" role="status"></p>
+
+  <div class="set">
+    <h2>Settings</h2>
+    <label for="thr">Sensitivity <input type="range" id="thr" min="8" max="30" step="1"><span class="val" id="thrV"></span></label>
+    <label for="vib"><input type="checkbox" id="vib"> Vibrate</label>
+    <label for="snd"><input type="checkbox" id="snd"> Beep from the side to steer towards (for headphones and iPhone)</label>
+    <div class="row" style="margin-top:6px"><button class="ghost" id="test">Test both alerts</button></div>
+  </div>
+
+  <details>
+    <summary>How it works</summary>
+    <p>Steps are counted from the accelerometer. You count as "looking" when the phone is held up in portrait, tilted towards your face, with this page on screen.</p>
+    <p>After about 2 seconds of walking and looking, your current direction becomes the line. If you drift past the sensitivity angle, it alerts you: <b>one long buzz = steer left</b>, <b>two short buzzes = steer right</b>.</p>
+    <p>A sharp turn (over 55°), or staying off-line for 8 seconds, counts as a deliberate turn and a new line is set. Stopping or lowering the phone resets it.</p>
+    <p>Vibration works in Chrome on Android. iPhones don't let web pages vibrate, so use the beep there.</p>
+  </details>
+</div>
+
+<script>
+{
+const $ = id => document.getElementById(id);
+const R = Math.PI / 180;
+const norm = a => ((a % 360) + 360) % 360;
+const dAng = (a, b) => ((a - b + 540) % 360) - 180;
+
+let cfg = { thr: 15, vib: true, snd: true };
+try { Object.assign(cfg, JSON.parse(localStorage.getItem('lane-cfg') || '{}')); } catch (e) {}
+const save = () => { try { localStorage.setItem('lane-cfg', JSON.stringify(cfg)); } catch (e) {} };
+
+const S = {
+  on: false, gotOri: false, gotMotion: false,
+  fl: 9.8, base: 9.8, armed: true, lastStep: 0, steps: [], count: 0,
+  beta: 0, gamma: 0, sx: 0, sy: 0, lastOri: 0,
+  ref: null, lockStart: 0, offSince: 0, lastAlert: 0, timer: null
+};
+let actx = null, wake = null;
+
+// Heading of the direction the phone's top/back points, tilt-compensated (W3C formula).
+function devHeading(alpha, beta, gamma) {
+  const x = beta * R, y = gamma * R, z = alpha * R;
+  const cX = Math.cos(x), cY = Math.cos(y), cZ = Math.cos(z);
+  const sX = Math.sin(x), sY = Math.sin(y), sZ = Math.sin(z);
+  const Vx = -cZ * sY - sZ * sX * cY;
+  const Vy = -sZ * sY + cZ * sX * cY;
+  let h = Math.atan(Vx / Vy);
+  if (Vy < 0) h += Math.PI; else if (Vx < 0) h += 2 * Math.PI;
+  return h / R;
+}
+const smoothed = () => norm(Math.atan2(S.sy, S.sx) / R);
+
+function onOri(e) {
+  if (e.alpha == null || e.beta == null) return;
+  S.gotOri = true;
+  S.beta = e.beta; S.gamma = e.gamma;
+  const t = performance.now(), dt = S.lastOri ? Math.min(0.2, (t - S.lastOri) / 1000) : 0.016;
+  S.lastOri = t;
+  const h = devHeading(e.alpha, e.beta, e.gamma);
+  const k = 1 - Math.exp(-dt / 1.1); // ~1.1 s smoothing to cancel step sway
+  if (S.sx === 0 && S.sy === 0) { S.sx = Math.cos(h * R); S.sy = Math.sin(h * R); }
+  S.sx += (Math.cos(h * R) - S.sx) * k;
+  S.sy += (Math.sin(h * R) - S.sy) * k;
+}
+
+function onMotion(e) {
+  const a = e.accelerationIncludingGravity;
+  if (!a || a.x == null) return;
+  S.gotMotion = true;
+  const mag = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+  S.fl += (mag - S.fl) * 0.35;
+  S.base += (mag - S.base) * 0.02;
+  const d = S.fl - S.base, t = performance.now();
+  if (S.armed && d > 1.1 && t - S.lastStep > 300) {
+    S.lastStep = t; S.steps.push(t); S.count++; S.armed = false;
+  }
+  if (d < 0.3) S.armed = true;
+}
+
+function beep(pan, n) {
+  if (!actx || !cfg.snd) return;
+  for (let i = 0; i < n; i++) {
+    const t0 = actx.currentTime + i * 0.22;
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.frequency.value = n === 1 ? 520 : 880;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.35, t0 + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + (n === 1 ? 0.4 : 0.14));
+    let node = g;
+    if (actx.createStereoPanner) { const p = actx.createStereoPanner(); p.pan.value = pan; g.connect(p); node = p; }
+    o.connect(g); node.connect(actx.destination);
+    o.start(t0); o.stop(t0 + 0.45);
+  }
+}
+
+function buzz(pattern) { if (cfg.vib && navigator.vibrate) navigator.vibrate(pattern); }
+
+function warn(dev) {
+  if (dev > 0) { buzz([450]); beep(-1, 1); }      // veered right → steer left
+  else { buzz([120, 110, 120]); beep(1, 2); }     // veered left → steer right
+}
+
+function relock(t) { S.ref = null; S.lockStart = t; S.offSince = 0; }
+
+function setStat(id, on) { const el = $(id); el.textContent = on ? 'Yes' : 'No'; el.className = on ? 'yes' : 'no'; }
+
+function render(state, dev, off) {
+  $('state').textContent = state;
+  $('sSteps').textContent = S.count;
+  $('sDev').textContent = dev == null ? '–' : (dev > 0 ? '+' : '') + Math.round(dev) + '°';
+  const lane = $('lane');
+  lane.classList.toggle('off', !!off);
+  const x = dev == null ? 0 : Math.max(-1, Math.min(1, dev / 45)) * 40;
+  $('dot').style.transform = 'translateX(' + (x / 100 * lane.clientWidth) + 'px)';
+  const bw = (cfg.thr / 45) * 40 / 100 * lane.clientWidth;
+  $('band').style.width = (2 * bw) + 'px'; $('band').style.marginLeft = (-bw) + 'px';
+  $('steer').textContent = off ? (dev > 0 ? '← Steer left' : 'Steer right →') : '';
+}
+
+function tick() {
+  const t = performance.now();
+  S.steps = S.steps.filter(s => t - s < 3000);
+  const walking = S.steps.length >= 3 && t - S.lastStep < 1300;
+  const looking = S.beta > 15 && S.beta < 85 && Math.abs(S.gamma) < 40 && !document.hidden;
+  setStat('sWalk', walking); setStat('sLook', looking);
+  $('lane').classList.toggle('walking', walking);
+
+  if (!S.gotOri || !S.gotMotion) { render('Waiting for motion sensors…', null, false); return; }
+  if (!(walking && looking)) {
+    S.ref = null; S.lockStart = 0; S.offSince = 0;
+    render(walking ? 'Hold the phone up to start tracking' : looking ? 'Start walking…' : 'Walk while looking at the screen', null, false);
+    return;
+  }
+  if (S.ref === null) {
+    if (!S.lockStart) S.lockStart = t;
+    if (t - S.lockStart < 2000) { render('Setting your line…', null, false); return; }
+    S.ref = smoothed(); buzz([25]);
+  }
+  const dev = dAng(smoothed(), S.ref);
+  if (Math.abs(dev) > 55) { relock(t); render('Turn detected — setting a new line', null, false); return; }
+  const off = Math.abs(dev) > cfg.thr;
+  if (off) {
+    if (!S.offSince) S.offSince = t;
+    if (t - S.offSince > 8000) { relock(t); render('Looks deliberate — new line set', null, false); return; }
+    if (t - S.offSince > 700 && t - S.lastAlert > 1400) { warn(dev); S.lastAlert = t; }
+  } else S.offSince = 0;
+  render(off ? 'Off line' : 'On line', dev, off && t - S.offSince > 700);
+}
+
+async function getWake() {
+  try { if ('wakeLock' in navigator && !document.hidden) wake = await navigator.wakeLock.request('screen'); } catch (e) {}
+}
+
+async function start() {
+  const msg = $('msg'); msg.textContent = '';
+  if (S.on) { stop(); return; }
+  if (!window.isSecureContext) { msg.textContent = 'Open this page over https:// — phones block motion sensors otherwise.'; return; }
+  try {
+    const asks = [];
+    if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) asks.push(DeviceMotionEvent.requestPermission());
+    if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) asks.push(DeviceOrientationEvent.requestPermission());
+    const res = await Promise.all(asks);
+    if (res.some(r => r !== 'granted')) { msg.textContent = 'Motion access was refused. Allow it in Safari settings and reload.'; return; }
+  } catch (e) { msg.textContent = 'Could not get motion access: ' + e.message; return; }
+  try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) {}
+  window.addEventListener('devicemotion', onMotion);
+  window.addEventListener('deviceorientation', onOri);
+  getWake();
+  S.on = true; S.timer = setInterval(tick, 100);
+  $('start').textContent = 'Stop'; $('recentre').disabled = false;
+  if (!navigator.vibrate) msg.textContent = 'This browser can’t vibrate — the beep will be used instead.';
+  setTimeout(() => { if (S.on && (!S.gotOri || !S.gotMotion)) msg.textContent = 'No motion data yet. This needs a phone with a gyroscope and compass.'; }, 2500);
+}
+
+function stop() {
+  S.on = false; clearInterval(S.timer);
+  window.removeEventListener('devicemotion', onMotion);
+  window.removeEventListener('deviceorientation', onOri);
+  try { wake && wake.release(); } catch (e) {}
+  S.ref = null; S.lockStart = 0;
+  $('start').textContent = 'Start'; $('recentre').disabled = true;
+  render('Stopped', null, false);
+}
+
+$('start').addEventListener('click', start);
+$('recentre').addEventListener('click', () => { relock(performance.now()); buzz([25]); });
+$('test').addEventListener('click', () => {
+  try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) {}
+  warn(1); setTimeout(() => warn(-1), 1300);
+});
+$('thr').value = cfg.thr; $('thrV').textContent = cfg.thr + '°';
+$('thr').addEventListener('input', e => { cfg.thr = +e.target.value; $('thrV').textContent = cfg.thr + '°'; save(); if (!S.on) render('Tap Start, then walk while looking at the screen', null, false); });
+$('vib').checked = cfg.vib; $('vib').addEventListener('change', e => { cfg.vib = e.target.checked; save(); });
+$('snd').checked = cfg.snd; $('snd').addEventListener('change', e => { cfg.snd = e.target.checked; save(); });
+document.addEventListener('visibilitychange', () => { if (S.on && !document.hidden) getWake(); });
+window.addEventListener('resize', () => { if (!S.on) render($('state').textContent, null, false); });
+render('Tap Start, then walk while looking at the screen', null, false);
+}
+</script>
+</body>
+</html>
