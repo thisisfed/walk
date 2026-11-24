@@ -137,7 +137,7 @@ footer{margin-top:36px;text-align:center;font-size:12px;color:var(--mute)}
     <div class="item"><span class="t">Sensitivity<small>Smaller angle buzzes sooner</small></span><span class="val" id="thrV"></span></div>
     <div class="slider"><input type="range" id="thr" min="8" max="30" step="1" aria-label="Sensitivity in degrees"></div>
     <label class="item" for="vib"><span class="t">Vibrate<small>Android, in Chrome</small></span><input type="checkbox" class="switch" id="vib"></label>
-    <label class="item" for="snd"><span class="t">Directional beep<small>Sounds from the side to steer to. Best with headphones, and the option on iPhone</small></span><input type="checkbox" class="switch" id="snd"></label>
+    <label class="item" for="snd"><span class="t">Directional beep<small>Loud tone from the side to steer to. Turn your volume up; works with headphones and on iPhone</small></span><input type="checkbox" class="switch" id="snd"></label>
     <div class="item"><span class="t">Try the alerts</span><button class="linkbtn" id="test">Play</button></div>
   </div>
 
@@ -164,7 +164,7 @@ const save = () => { try { localStorage.setItem('lane-cfg', JSON.stringify(cfg))
 
 const S = {
   on: false, gotOri: false, gotMotion: false,
-  fl: 9.8, base: 9.8, armed: true, lastStep: 0, steps: [], count: 0,
+  fl: 9.8, base: 9.8, armed: true, amp: 0.6, peak: 0, lastStep: 0, steps: [], count: 0,
   beta: 0, gamma: 0, sx: 0, sy: 0, lastOri: 0,
   ref: null, lockStart: 0, offSince: 0, lastAlert: 0, timer: null
 };
@@ -201,29 +201,59 @@ function onMotion(e) {
   if (!a || a.x == null) return;
   S.gotMotion = true;
   const mag = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
-  S.fl += (mag - S.fl) * 0.35;
+  S.fl += (mag - S.fl) * 0.3;
   S.base += (mag - S.base) * 0.02;
   const d = S.fl - S.base, t = performance.now();
-  if (S.armed && d > 1.1 && t - S.lastStep > 300) {
-    S.lastStep = t; S.steps.push(t); S.count++; S.armed = false;
-  }
-  if (d < 0.3) S.armed = true;
+  // Adaptive threshold: follows how hard your steps are, so soft, slow steps still count.
+  const thr = Math.min(1.0, Math.max(0.22, S.amp * 0.38));
+  if (S.armed) {
+    if (d > thr) S.peak = Math.max(S.peak, d);
+    if (S.peak && d < thr * 0.5) {            // peak finished → one step
+      if (t - S.lastStep > 280) {
+        S.lastStep = t; S.steps.push(t); S.count++;
+        S.amp += (Math.min(S.peak, 4) - S.amp) * 0.25;
+      }
+      S.peak = 0; S.armed = false;
+    }
+  } else if (d < thr * 0.25) S.armed = true;
+  // Standing still: let the threshold sink back so the first slow steps are caught.
+  if (t - S.lastStep > 2500) S.amp += (0.6 - S.amp) * 0.01;
 }
 
+// Loud chain: tones → limiter → max gain. Square waves around 1.5–2.5 kHz, where ears are most sensitive.
+let out = null;
+function audioOut() {
+  if (out) return out;
+  const comp = actx.createDynamicsCompressor();
+  comp.threshold.value = -6; comp.knee.value = 0; comp.ratio.value = 20; comp.attack.value = 0.001; comp.release.value = 0.05;
+  const master = actx.createGain(); master.gain.value = 1;
+  comp.connect(master); master.connect(actx.destination);
+  return (out = comp);
+}
+function tone(t0, freq, dur, pan) {
+  const o = actx.createOscillator(), o2 = actx.createOscillator(), g = actx.createGain();
+  o.type = 'square'; o2.type = 'square';
+  o.frequency.value = freq; o2.frequency.value = freq * 1.5;   // a bright fifth, cuts through street noise
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(0.9, t0 + 0.01);
+  g.gain.setValueAtTime(0.9, t0 + dur - 0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  let node = g;
+  if (actx.createStereoPanner) { const p = actx.createStereoPanner(); p.pan.value = pan; g.connect(p); node = p; }
+  o.connect(g); o2.connect(g); node.connect(audioOut());
+  o.start(t0); o2.start(t0); o.stop(t0 + dur + 0.02); o2.stop(t0 + dur + 0.02);
+}
 function beep(pan, n) {
   if (!actx || !cfg.snd) return;
-  for (let i = 0; i < n; i++) {
-    const t0 = actx.currentTime + i * 0.22;
-    const o = actx.createOscillator(), g = actx.createGain();
-    o.frequency.value = n === 1 ? 520 : 880;
-    g.gain.setValueAtTime(0.0001, t0);
-    g.gain.exponentialRampToValueAtTime(0.35, t0 + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + (n === 1 ? 0.4 : 0.14));
-    let node = g;
-    if (actx.createStereoPanner) { const p = actx.createStereoPanner(); p.pan.value = pan; g.connect(p); node = p; }
-    o.connect(g); node.connect(actx.destination);
-    o.start(t0); o.stop(t0 + 0.45);
-  }
+  if (actx.state === 'suspended') actx.resume();
+  const t = actx.currentTime + 0.01;
+  if (n === 1) tone(t, 1400, 0.45, pan);
+  else { tone(t, 2000, 0.13, pan); tone(t + 0.2, 2000, 0.13, pan); }
+}
+function initAudio() {
+  // iPhone: play through the silent switch, like media playback.
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+  try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) {}
 }
 
 function buzz(pattern) { if (cfg.vib && navigator.vibrate) navigator.vibrate(pattern); }
@@ -254,8 +284,18 @@ function render(state, dev, off) {
 
 function tick() {
   const t = performance.now();
-  S.steps = S.steps.filter(s => t - s < 3000);
-  const walking = S.steps.length >= 3 && t - S.lastStep < 1300;
+  S.steps = S.steps.filter(s => t - s < 5000);
+  // Slow walking is ~1 step a second, so allow gaps up to 2.2 s.
+  const recent = S.steps.filter(s => t - s < 4500);
+  let steady = recent.length >= 3;
+  if (steady) {
+    const gaps = recent.slice(1).map((s, i) => s - recent[i]).sort((a, b) => a - b);
+    const med = gaps[gaps.length >> 1];
+    const lo = gaps[Math.floor(gaps.length * 0.25)], hi = gaps[Math.ceil(gaps.length * 0.75) - 1];
+    // Walking has a steady rhythm; random hand shake doesn't.
+    steady = med > 280 && med < 1800 && hi / lo < 1.7;
+  }
+  const walking = steady && t - S.lastStep < 2200;
   const looking = S.beta > 15 && S.beta < 85 && Math.abs(S.gamma) < 40 && !document.hidden;
   setStat('sWalk', walking); setStat('sLook', looking);
   $('lane').classList.toggle('walking', walking);
@@ -295,9 +335,9 @@ async function start() {
     if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) asks.push(DeviceMotionEvent.requestPermission());
     if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) asks.push(DeviceOrientationEvent.requestPermission());
     const res = await Promise.all(asks);
-    if (res.some(r => r !== 'granted')) { msg.textContent = 'Motion access was refused. Allow it in Safari settings and reload.'; return; }
+    if (res.some(r => r !== 'granted')) { msg.textContent = 'Motion access was refused. Allow motion sensors for this site in your browser settings and reload.'; return; }
   } catch (e) { msg.textContent = 'Could not get motion access: ' + e.message; return; }
-  try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) {}
+  initAudio();
   window.addEventListener('devicemotion', onMotion);
   window.addEventListener('deviceorientation', onOri);
   getWake();
@@ -320,7 +360,7 @@ function stop() {
 $('start').addEventListener('click', start);
 $('recentre').addEventListener('click', () => { relock(performance.now()); buzz([25]); });
 $('test').addEventListener('click', () => {
-  try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) {}
+  initAudio();
   warn(1); setTimeout(() => warn(-1), 1300);
 });
 $('thr').value = cfg.thr; $('thrV').textContent = cfg.thr + '°';
