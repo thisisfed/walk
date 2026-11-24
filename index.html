@@ -3,72 +3,120 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#15171a">
+<meta name="theme-color" content="#fbfbfd" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="description" content="Lane gives you a gentle buzz when you drift off a straight line while walking and looking at your phone.">
 <title>Lane — walk straight</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-/* VOICE: calm road-sign clarity, readable at a glance while walking
-   IDEA: a single road lane — you are the dot, the yellow line is your path
-   PICTURE: the lane itself, large; the dot drifts off the line as you veer
-   COLOUR and TYPE: asphalt #15171a, road yellow #ffd23f, warning orange #ff5a36; Archivo
-   LAYOUT: one column, lane on top, status, big controls, settings */
-:root{color-scheme:dark;--bg:#15171a;--road:#202328;--ink:#f2f2ee;--mute:#9aa0a6;--y:#ffd23f;--warn:#ff5a36;--ok:#4fd18b}
-*{box-sizing:border-box;min-width:0}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Archivo,system-ui,sans-serif;overflow-x:clip;
-  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
-.wrap{max-width:560px;margin:0 auto;padding:18px 16px 40px}
-h1{font-size:34px;line-height:1.05;margin:4px 0 2px;font-weight:900;letter-spacing:-.5px}
-.sub{color:var(--mute);margin:0 0 16px}
-.lane{position:relative;height:min(46vh,380px);background:var(--road);border-radius:18px;overflow:hidden;
-  box-shadow:inset 0 0 0 2px #2c3036}
-.lane::before,.lane::after{content:"";position:absolute;top:0;bottom:0;width:6px;background:#e9e9e4;opacity:.55}
-.lane::before{left:7%}.lane::after{right:7%}
-.centre{position:absolute;left:50%;top:-40px;bottom:-40px;width:6px;margin-left:-3px;
-  background:repeating-linear-gradient(var(--y) 0 34px,transparent 34px 64px);animation:roll 1s linear infinite;animation-play-state:paused}
+:root{
+  --bg:#fbfbfd;--card:#ffffff;--ink:#1d1d1f;--mute:#6e6e73;--line:#d2d2d7;--soft:#f5f5f7;
+  --accent:#ff4f3a;--ok:#1fa34a;--shadow:0 1px 2px rgba(0,0,0,.04),0 8px 28px rgba(0,0,0,.07);
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display",Inter,"Helvetica Neue",Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#000;--card:#1c1c1e;--ink:#f5f5f7;--mute:#98989d;--line:#38383a;--soft:#2c2c2e;
+  --shadow:0 0 0 1px rgba(255,255,255,.06);
+}}
+*{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.47 var(--font);letter-spacing:-.022em;overflow-x:clip;
+  -webkit-font-smoothing:antialiased;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.wrap{max-width:600px;margin:0 auto;padding:22px 20px 56px}
+
+nav{display:flex;align-items:center;justify-content:space-between;height:44px;margin-bottom:18px}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:19px;letter-spacing:-.03em}
+.mark{width:22px;height:22px;border-radius:7px;background:var(--ink);position:relative}
+.mark::after{content:"";position:absolute;left:50%;top:4px;bottom:4px;width:2px;margin-left:-1px;border-radius:2px;background:var(--bg)}
+.pill-status{font-size:13px;font-weight:600;color:var(--mute);background:var(--soft);border-radius:980px;padding:6px 12px;white-space:nowrap}
+.pill-status.live{color:var(--ok)}
+
+h1{font-size:clamp(40px,11vw,56px);line-height:1.04;letter-spacing:-.045em;font-weight:800;margin:6px 0 10px;text-wrap:balance}
+.sub{font-size:19px;line-height:1.42;color:var(--mute);margin:0 0 28px;max-width:30em;text-wrap:pretty}
+
+.lane{position:relative;height:min(52vh,420px);border-radius:28px;overflow:hidden;background:var(--card);box-shadow:var(--shadow);
+  isolation:isolate;transition:background .35s}
+.lane::before{content:"";position:absolute;inset:0;z-index:-1;
+  background:radial-gradient(120% 70% at 50% 110%,rgba(0,0,0,.05),transparent 60%),linear-gradient(var(--card),var(--soft))}
+.edge{position:absolute;top:0;bottom:0;width:1px;background:var(--line)}
+.edge.l{left:14%}.edge.r{right:14%}
+.centre{position:absolute;left:50%;top:-48px;bottom:-48px;width:3px;margin-left:-1.5px;border-radius:3px;
+  background:repeating-linear-gradient(var(--ink) 0 22px,transparent 22px 48px);opacity:.16;animation:roll 1.1s linear infinite;animation-play-state:paused}
 .walking .centre{animation-play-state:running}
-@keyframes roll{to{transform:translateY(64px)}}
-.band-ok{position:absolute;top:0;bottom:0;left:50%;background:rgba(255,210,63,.08);transition:width .3s,margin .3s}
-.dot{position:absolute;left:50%;bottom:22%;width:54px;height:54px;margin-left:-27px;border-radius:50%;
-  background:var(--ink);box-shadow:0 6px 18px rgba(0,0,0,.5),inset 0 -6px 0 rgba(0,0,0,.18);transition:transform .25s ease-out,background .2s}
-.dot::after{content:"";position:absolute;left:50%;top:-14px;margin-left:-9px;border:9px solid transparent;border-bottom:14px solid var(--ink);border-top:0}
-.off .dot{background:var(--warn)}.off .dot::after{border-bottom-color:var(--warn)}
-.steer{position:absolute;left:0;right:0;top:12%;text-align:center;font-size:30px;font-weight:900;color:var(--warn);opacity:0;transition:opacity .2s;text-shadow:0 2px 10px rgba(0,0,0,.6)}
-.off .steer{opacity:1}
-.state{position:absolute;left:12px;right:12px;bottom:10px;text-align:center;font-weight:700;color:var(--mute);font-size:15px}
-.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:14px 0}
-.stat{background:var(--road);border-radius:12px;padding:10px 8px;text-align:center}
-.stat b{display:block;font-size:22px;font-variant-numeric:tabular-nums;white-space:nowrap}
-.stat span{font-size:13px;color:var(--mute)}
-.yes{color:var(--ok)}.no{color:var(--mute)}
+@keyframes roll{to{transform:translateY(48px)}}
+.band-ok{position:absolute;top:0;bottom:0;left:50%;background:linear-gradient(90deg,transparent,rgba(31,163,74,.07),transparent);opacity:0;transition:opacity .4s,width .3s,margin .3s}
+.live .band-ok{opacity:1}
+.dot{position:absolute;left:50%;bottom:24%;width:64px;height:64px;margin-left:-32px;border-radius:50%;background:var(--ink);
+  box-shadow:0 10px 30px rgba(0,0,0,.22);transition:transform .3s cubic-bezier(.2,.8,.2,1),background .25s}
+.dot svg{position:absolute;inset:0;margin:auto;width:26px;height:26px;color:var(--bg)}
+.off .dot{background:var(--accent);box-shadow:0 10px 34px rgba(255,79,58,.45)}
+.off{background:color-mix(in srgb,var(--accent) 6%,var(--card))}
+.steer{position:absolute;left:0;right:0;top:13%;text-align:center;font-size:30px;font-weight:800;letter-spacing:-.035em;color:var(--accent);
+  opacity:0;transform:translateY(6px);transition:opacity .25s,transform .25s}
+.off .steer{opacity:1;transform:none}
+.state{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);width:max-content;max-width:calc(100% - 32px);text-align:center;font-size:14px;font-weight:500;color:var(--mute);background:var(--card);border-radius:980px;padding:8px 14px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:18px 0 22px;background:var(--card);border-radius:20px;box-shadow:var(--shadow);padding:14px 4px}
+.stat{text-align:center;padding:2px 4px}
+.stat+.stat{border-left:1px solid var(--line)}
+.stat b{display:block;font-size:21px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.stat span{font-size:12px;font-weight:500;color:var(--mute)}
+.yes{color:var(--ok)}.no{color:var(--ink);opacity:.35}
+
 .row{display:flex;gap:10px;flex-wrap:wrap}
-button{font:inherit;font-weight:700;min-height:52px;border-radius:14px;border:0;padding:0 18px;cursor:pointer;flex:1 1 140px}
-button:focus-visible,input:focus-visible{outline:3px solid var(--y);outline-offset:2px}
-.go{background:var(--y);color:#15171a;font-size:19px}
-.ghost{background:var(--road);color:var(--ink);box-shadow:inset 0 0 0 2px #33373d}
-.msg{min-height:1.5em;margin:10px 0 0;color:var(--warn);font-weight:700}
-.set{margin-top:22px;background:var(--road);border-radius:16px;padding:14px 16px}
-.set h2{font-size:17px;margin:0 0 8px}
-label{display:flex;align-items:center;gap:12px;min-height:44px}
-input[type=range]{flex:1;accent-color:var(--y);height:32px}
-input[type=checkbox]{width:24px;height:24px;accent-color:var(--y)}
-.val{font-variant-numeric:tabular-nums;white-space:nowrap;width:3.2em;text-align:right;font-weight:700}
-details{margin-top:18px;color:var(--mute)}summary{cursor:pointer;font-weight:700;color:var(--ink);min-height:44px;display:flex;align-items:center}
-details p{margin:6px 0}
-@media (prefers-reduced-motion:reduce){.centre{animation:none}.dot{transition:none}}
+button{font:inherit;font-size:17px;font-weight:600;letter-spacing:-.02em;min-height:54px;border-radius:980px;border:0;padding:0 24px;cursor:pointer;flex:1 1 150px;
+  transition:transform .15s,opacity .2s,background .2s}
+button:active{transform:scale(.97)}
+button:disabled{opacity:.35;cursor:default}
+button:focus-visible,input:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 60%,transparent);outline-offset:3px}
+.go{background:var(--ink);color:var(--bg)}
+.ghost{background:var(--soft);color:var(--ink)}
+.msg{min-height:1.4em;margin:12px 4px 0;font-size:15px;color:var(--accent);font-weight:500}
+
+h2{font-size:24px;font-weight:700;letter-spacing:-.035em;margin:40px 4px 12px}
+.group{background:var(--card);border-radius:20px;box-shadow:var(--shadow);overflow:hidden}
+.item{display:flex;align-items:center;gap:14px;min-height:58px;padding:10px 18px;font-size:17px}
+.item+.item,.slider+.item{border-top:1px solid var(--line)}
+.item .t{flex:1}
+.item small{display:block;font-size:13px;color:var(--mute);letter-spacing:-.01em;line-height:1.35}
+.val{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--mute)}
+input[type=range]{width:100%;accent-color:var(--ink);height:28px;margin:0}
+.slider{padding:4px 18px 16px}
+.switch{appearance:none;-webkit-appearance:none;flex:none;width:51px;height:31px;border-radius:31px;background:var(--line);position:relative;cursor:pointer;transition:background .25s;margin:0}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.2);transition:transform .25s cubic-bezier(.2,.8,.2,1)}
+.switch:checked{background:var(--ok)}
+.switch:checked::after{transform:translateX(20px)}
+.linkbtn{background:none;color:var(--accent);min-height:44px;padding:0;flex:none;font-weight:600;border-radius:8px}
+
+.how{display:grid;gap:12px}
+.how .card{background:var(--card);border-radius:20px;box-shadow:var(--shadow);padding:18px 20px}
+.how b{display:block;font-size:17px;margin-bottom:2px}
+.how p{margin:0;color:var(--mute);font-size:15px;line-height:1.45}
+.legend{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.legend span{font-size:13px;font-weight:600;background:var(--soft);border-radius:980px;padding:6px 12px;white-space:nowrap}
+footer{margin-top:36px;text-align:center;font-size:12px;color:var(--mute)}
+@media (prefers-reduced-motion:reduce){.centre{animation:none}.dot,.steer,.switch::after{transition:none}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Lane</h1>
-  <p class="sub">Buzzes when you drift off a straight line while walking and looking at your phone.</p>
+  <nav>
+    <div class="brand"><span class="mark" aria-hidden="true"></span>Lane</div>
+    <span class="pill-status" id="pill">Off</span>
+  </nav>
+
+  <h1>Eyes on your phone. Feet on the line.</h1>
+  <p class="sub">Lane notices when you're walking and reading, and gives a gentle buzz the moment you start to drift.</p>
 
   <div class="lane" id="lane">
+    <div class="edge l"></div><div class="edge r"></div>
     <div class="band-ok" id="band"></div>
     <div class="centre"></div>
     <div class="steer" id="steer"></div>
-    <div class="dot" id="dot"></div>
-    <div class="state" id="state">Tap Start, then walk while looking at the screen</div>
+    <div class="dot" id="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg></div>
+    <div class="state" id="state">Tap Start, then walk while reading</div>
   </div>
 
   <div class="stats">
@@ -80,27 +128,29 @@ details p{margin:6px 0}
 
   <div class="row">
     <button class="go" id="start">Start</button>
-    <button class="ghost" id="recentre" disabled>Re-centre line</button>
+    <button class="ghost" id="recentre" disabled>Re-centre</button>
   </div>
   <p class="msg" id="msg" role="status"></p>
 
-  <div class="set">
-    <h2>Settings</h2>
-    <label for="thr">Sensitivity <input type="range" id="thr" min="8" max="30" step="1"><span class="val" id="thrV"></span></label>
-    <label for="vib"><input type="checkbox" id="vib"> Vibrate</label>
-    <label for="snd"><input type="checkbox" id="snd"> Beep from the side to steer towards (for headphones and iPhone)</label>
-    <div class="row" style="margin-top:6px"><button class="ghost" id="test">Test both alerts</button></div>
+  <h2>Settings</h2>
+  <div class="group">
+    <div class="item"><span class="t">Sensitivity<small>Smaller angle buzzes sooner</small></span><span class="val" id="thrV"></span></div>
+    <div class="slider"><input type="range" id="thr" min="8" max="30" step="1" aria-label="Sensitivity in degrees"></div>
+    <label class="item" for="vib"><span class="t">Vibrate<small>Android, in Chrome</small></span><input type="checkbox" class="switch" id="vib"></label>
+    <label class="item" for="snd"><span class="t">Directional beep<small>Sounds from the side to steer to. Best with headphones, and the option on iPhone</small></span><input type="checkbox" class="switch" id="snd"></label>
+    <div class="item"><span class="t">Try the alerts</span><button class="linkbtn" id="test">Play</button></div>
   </div>
 
-  <details>
-    <summary>How it works</summary>
-    <p>Steps are counted from the accelerometer. You count as "looking" when the phone is held up in portrait, tilted towards your face, with this page on screen.</p>
-    <p>After about 2 seconds of walking and looking, your current direction becomes the line. If you drift past the sensitivity angle, it alerts you: <b>one long buzz = steer left</b>, <b>two short buzzes = steer right</b>.</p>
-    <p>A sharp turn (over 55°), or staying off-line for 8 seconds, counts as a deliberate turn and a new line is set. Stopping or lowering the phone resets it.</p>
-    <p>Vibration works in Chrome on Android. iPhones don't let web pages vibrate, so use the beep there.</p>
-  </details>
-</div>
+  <h2>How it works</h2>
+  <div class="how">
+    <div class="card"><b>It knows you're walking</b><p>Steps are counted from the motion sensor, and you count as reading when the phone is held up in portrait with Lane on screen.</p></div>
+    <div class="card"><b>It locks your line</b><p>After about two seconds, the way you're heading becomes the line. Drift past your sensitivity angle and it nudges you back.</p>
+      <div class="legend"><span>One long buzz · steer left</span><span>Two short · steer right</span></div></div>
+    <div class="card"><b>It knows a corner from a drift</b><p>A sharp turn, or staying off line for eight seconds, sets a new line. Stop or lower the phone and it resets.</p></div>
+  </div>
 
+  <footer>Still look up at crossings.</footer>
+</div>
 <script>
 {
 const $ = id => document.getElementById(id);
@@ -193,6 +243,8 @@ function render(state, dev, off) {
   $('sDev').textContent = dev == null ? '–' : (dev > 0 ? '+' : '') + Math.round(dev) + '°';
   const lane = $('lane');
   lane.classList.toggle('off', !!off);
+  lane.classList.toggle('live', dev != null);
+  const pill = $('pill'); pill.textContent = !S.on ? 'Off' : dev != null ? 'Tracking' : 'Ready'; pill.classList.toggle('live', dev != null);
   const x = dev == null ? 0 : Math.max(-1, Math.min(1, dev / 45)) * 40;
   $('dot').style.transform = 'translateX(' + (x / 100 * lane.clientWidth) + 'px)';
   const bw = (cfg.thr / 45) * 40 / 100 * lane.clientWidth;
@@ -272,12 +324,12 @@ $('test').addEventListener('click', () => {
   warn(1); setTimeout(() => warn(-1), 1300);
 });
 $('thr').value = cfg.thr; $('thrV').textContent = cfg.thr + '°';
-$('thr').addEventListener('input', e => { cfg.thr = +e.target.value; $('thrV').textContent = cfg.thr + '°'; save(); if (!S.on) render('Tap Start, then walk while looking at the screen', null, false); });
+$('thr').addEventListener('input', e => { cfg.thr = +e.target.value; $('thrV').textContent = cfg.thr + '°'; save(); if (!S.on) render('Tap Start, then walk while reading', null, false); });
 $('vib').checked = cfg.vib; $('vib').addEventListener('change', e => { cfg.vib = e.target.checked; save(); });
 $('snd').checked = cfg.snd; $('snd').addEventListener('change', e => { cfg.snd = e.target.checked; save(); });
 document.addEventListener('visibilitychange', () => { if (S.on && !document.hidden) getWake(); });
 window.addEventListener('resize', () => { if (!S.on) render($('state').textContent, null, false); });
-render('Tap Start, then walk while looking at the screen', null, false);
+render('Tap Start, then walk while reading', null, false);
 }
 </script>
 </body>
