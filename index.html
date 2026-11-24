@@ -136,7 +136,7 @@ footer{margin-top:36px;text-align:center;font-size:12px;color:var(--mute)}
   <div class="group">
     <div class="item"><span class="t">Sensitivity<small>Smaller angle buzzes sooner</small></span><span class="val" id="thrV"></span></div>
     <div class="slider"><input type="range" id="thr" min="8" max="30" step="1" aria-label="Sensitivity in degrees"></div>
-    <label class="item" for="vib"><span class="t">Vibrate<small>Android, in Chrome</small></span><input type="checkbox" class="switch" id="vib"></label>
+    <label class="item" for="vib"><span class="t">Vibrate<small>Full buzz on Android. Light taps on some iPhones</small></span><input type="checkbox" class="switch" id="vib"></label>
     <label class="item" for="snd"><span class="t">Directional beep<small>Loud tone from the side to steer to. Turn your volume up; works with headphones and on iPhone</small></span><input type="checkbox" class="switch" id="snd"></label>
     <div class="item"><span class="t">Try the alerts</span><button class="linkbtn" id="test">Play</button></div>
   </div>
@@ -256,7 +256,27 @@ function initAudio() {
   try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) {}
 }
 
-function buzz(pattern) { if (cfg.vib && navigator.vibrate) navigator.vibrate(pattern); }
+// iPhone has no vibrate(); best effort: toggling a hidden Safari "switch" control fires the Taptic Engine.
+// Newer iOS versions may only allow this right after a tap, so the beep stays the main alert there.
+let hapLabel = null;
+function iosTick() {
+  if (!hapLabel) {
+    const inp = document.createElement('input'); inp.type = 'checkbox'; inp.setAttribute('switch', ''); inp.id = 'hap';
+    hapLabel = document.createElement('label'); hapLabel.htmlFor = 'hap'; hapLabel.setAttribute('aria-hidden', 'true');
+    for (const el of [inp, hapLabel]) { el.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9px'; document.body.appendChild(el); }
+  }
+  try { hapLabel.click(); } catch (e) {}
+}
+function buzz(pattern) {
+  if (!cfg.vib) return;
+  if (navigator.vibrate) { navigator.vibrate(pattern); return; }
+  // Turn the vibrate pattern into ticks: a long buzz becomes a rapid run, short buzzes single ticks.
+  let at = 0;
+  pattern.forEach((ms, i) => {
+    if (i % 2 === 0) { for (let k = 0; k < Math.max(1, Math.round(ms / 90)); k++) setTimeout(iosTick, at + k * 90); }
+    at += ms;
+  });
+}
 
 function warn(dev) {
   if (dev > 0) { buzz([450]); beep(-1, 1); }      // veered right → steer left
